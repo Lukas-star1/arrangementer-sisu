@@ -5,28 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arrangementer</title>
 <style>
-  :root { --blue:#4f72c2; --text:#3b57a7; --row1:#d0d5e8; --row2:#e9ebf5; --green:#3cae4a; --gold:#e3c97a; }
   * { box-sizing:border-box; }
   html,body { height:100%; margin:0; cursor:none; overflow:hidden; font-family:Calibri,"Segoe UI",Arial,sans-serif; }
-  body { background:radial-gradient(ellipse 70% 30% at 50% 62%, var(--gold), transparent 70%), var(--blue); }
+  body { background:#4f72c2; background:radial-gradient(ellipse 70% 30% at 50% 62%, #e3c97a, rgba(227,201,122,0) 70%), #4f72c2; }
   body.off { background:#000; }
   body.off #app { display:none; }
-  #app { height:100%; padding:2vw 3vw; display:flex; flex-direction:column; }
+  #app { height:100%; padding:2vw 3vw; }
   .title { margin:2vw 0 7vw; border:.25vw solid rgba(255,255,255,.7); border-radius:4vw;
     background:rgba(255,255,255,.08); text-align:center; color:#fff; font-weight:700; font-size:8vw; padding:4vw 2vw; }
   table { width:100%; border-collapse:collapse; table-layout:fixed; }
-  th { background:var(--blue); color:#fff; text-align:left; font-size:5.2vw; padding:1.4vw 1.6vw;
-    border:.3vw solid #fff; border-width:0 .3vw .6vw 0; }
-  td { color:var(--text); font-weight:700; font-size:4.6vw; padding:2vw 1.6vw; vertical-align:top;
-    border-right:.2vw solid #fff; white-space:pre-line; overflow-wrap:anywhere; }
-  tbody tr:nth-child(odd) td { background:var(--row1); }
-  tbody tr:nth-child(even) td { background:var(--row2); }
+  th { background:#4f72c2; color:#fff; text-align:left; font-size:5.2vw; padding:1.4vw 1.6vw;
+    border:0 solid #fff; border-right-width:.3vw; border-bottom-width:.6vw; }
+  td { color:#3b57a7; font-weight:700; font-size:4.6vw; padding:2vw 1.6vw; vertical-align:top;
+    border-right:.2vw solid #fff; white-space:pre-line; word-wrap:break-word; }
+  tbody tr.odd td { background:#d0d5e8; }
+  tbody tr.even td { background:#e9ebf5; }
   col.c1{width:44%} col.c2{width:28%} col.c3{width:17%} col.c4{width:11%}
   td.kl { text-align:center; }
-  tfoot td { background:var(--row1); font-size:3.8vw; }
-  tfoot td.note { color:var(--green); font-size:4.2vw; }
-  #logo { margin:auto auto 3vw; max-width:45vw; max-height:14vh; }
-  #status { position:fixed; right:1vw; bottom:.5vw; font-size:1.4vw; color:rgba(255,255,255,.5); }
+  tfoot td { background:#d0d5e8; font-size:3.8vw; }
+  tfoot td.note { color:#3cae4a; font-size:4.2vw; }
+  #logo { display:block; margin:6vw auto 0; max-width:45vw; max-height:14vh; }
+  #status { position:fixed; right:2vw; bottom:1vw; font-size:2vw; color:rgba(255,255,255,.8); }
 </style>
 </head>
 <body>
@@ -35,7 +34,7 @@
   <table>
     <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
     <thead><tr><th>Arrangementer</th><th>Dato</th><th>KL</th><th></th></tr></thead>
-    <tbody id="body"></tbody>
+    <tbody id="body"><tr class="odd"><td colspan="4">Henter data...</td></tr></tbody>
     <tfoot><tr><td id="legend"></td><td class="note" id="note" colspan="3"></td></tr></tfoot>
   </table>
   <img id="logo" src="logo.png" alt="" onerror="this.style.display='none'">
@@ -44,96 +43,126 @@
 
 <script>
 /* ====== INDSTILLINGER – ret kun her ====== */
-const TITLE = "Arrangementer 2026";
-
-// Google Sheets: Filer > Del > Udgiv på nettet > vælg fanen > CSV > kopiér linket hertil
-const DATA_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQxU70GEoYORBDG-Wu3zuABUxCjapp2lWAYlOz4_qdYHgfDF5M4DOaH-8gRyPHht5fsCi4jV_ggWB5A/pub?gid=1001&single=true&output=csv";
-
-// (Valgfri) Fane med kolonnerne: Dag | Tænd | Sluk  (fx "mandag | 16:00 | 22:00"). Tom = brug DEFAULT_HOURS.
-const SCHEDULE_CSV_URL = "";
-
-// Dag 0 = søndag ... 6 = lørdag. null = slukket hele dagen.
-const DEFAULT_HOURS = {
-  0: ["00:00","23:59"], 1: ["00:00","23:59"], 2: ["00:00","23:59"],
-  3: ["00:00","23:59"], 4: ["00:00","23:59"], 5: ["00:00","23:59"], 6: ["00:00","23:59"]
+var TITLE = "Arrangementer 2026";
+var DATA_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQxU70GEoYORBDG-Wu3zuABUxCjapp2lWAYlOz4_qdYHgfDF5M4DOaH-8gRyPHht5fsCi4jV_ggWB5A/pubhtml?gid=1001&single=true";
+var SCHEDULE_CSV_URL = "";   // valgfri fane: Dag | Tænd | Sluk
+var DEFAULT_HOURS = {
+  0: ["09:00","22:00"], 1: ["09:00","22:00"], 2: ["09:00","22:00"],
+  3: ["09:00","22:00"], 4: ["09:00","22:00"], 5: ["09:00","22:00"], 6: ["09:00","22:00"]
 };
-const REFRESH_SECONDS = 60;
+var REFRESH_SECONDS = 60;
 /* ========================================= */
 
-const DAYS = ["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
-let hours = DEFAULT_HOURS, rows = null;
-document.getElementById("title").textContent = TITLE;
+var VERSION = "v2";
+var DAYS = ["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
+var hours = DEFAULT_HOURS, rows = null;
+function $(id){ return document.getElementById(id); }
+$("title").innerHTML = TITLE;
+
+function store(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function restore(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 
 function parseCSV(text){
-  const out=[]; let row=[], cur="", q=false;
-  for (let i=0;i<text.length;i++){
-    const c=text[i];
-    if (q){ if(c==='"'&&text[i+1]==='"'){cur+='"';i++;} else if(c==='"'){q=false;} else cur+=c; }
+  var out=[], row=[], cur="", q=false, i, c;
+  for (i=0;i<text.length;i++){
+    c=text.charAt(i);
+    if (q){
+      if (c==='"' && text.charAt(i+1)==='"'){ cur+='"'; i++; }
+      else if (c==='"'){ q=false; }
+      else cur+=c;
+    }
     else if (c==='"') q=true;
     else if (c===','){ row.push(cur); cur=""; }
-    else if (c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(cur); out.push(row); row=[]; cur=""; }
+    else if (c==='\n' || c==='\r'){
+      if (c==='\r' && text.charAt(i+1)==='\n') i++;
+      row.push(cur); out.push(row); row=[]; cur="";
+    }
     else cur+=c;
   }
-  if (cur!==""||row.length){ row.push(cur); out.push(row); }
+  if (cur!=="" || row.length){ row.push(cur); out.push(row); }
   return out;
 }
-async function getCSV(url){
-  const r = await fetch(url+(url.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});
-  if(!r.ok) throw new Error(r.status);
-  return parseCSV(await r.text());
-}
-const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const toMin = t => { const m=/(\d{1,2})[:.](\d{2})/.exec(t||""); return m?(+m[1])*60+(+m[2]):null; };
 
-// Læser 2026-11-29, 29-11-2026, 29.11.2026 eller 29/11/2026
+function getCSV(url, ok, fail){
+  var x = new XMLHttpRequest();
+  x.open("GET", url + (url.indexOf("?")>-1 ? "&" : "?") + "t=" + new Date().getTime(), true);
+  x.onreadystatechange = function(){
+    if (x.readyState !== 4) return;
+    if (x.status >= 200 && x.status < 300){
+      try{ ok(parseCSV(x.responseText)); }catch(e){ fail("parse"); }
+    } else { fail(x.status || "net"); }
+  };
+  try{ x.send(); }catch(e){ fail("send"); }
+}
+
+function esc(s){
+  return String(s==null ? "" : s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];
+  });
+}
+function toMin(t){ var m=/(\d{1,2})[:.](\d{2})/.exec(t||""); return m ? (+m[1])*60+(+m[2]) : null; }
 function parseDate(s){
-  const m=/(\d{1,4})[-./](\d{1,2})[-./](\d{1,4})/.exec(s||""); if(!m) return null;
+  var m=/(\d{1,4})[-.\/](\d{1,2})[-.\/](\d{1,4})/.exec(s||""); if(!m) return null;
   return m[1].length===4 ? new Date(+m[1],+m[2]-1,+m[3]) : new Date(+m[3],+m[2]-1,+m[1]);
 }
-
 function isOn(){
-  const h=hours[new Date().getDay()]; if(!h) return false;
-  const d=new Date(), n=d.getHours()*60+d.getMinutes();
+  var h=hours[new Date().getDay()]; if(!h) return false;
+  var d=new Date(), n=d.getHours()*60+d.getMinutes();
   return n>=toMin(h[0]) && n<toMin(h[1]);
 }
 
 function render(){
-  if(!rows) return;
-  const today=new Date(); today.setHours(0,0,0,0);
-  const data=rows.slice(1).filter(r=>(r[0]||"").trim());
-  const visible=data.filter(r=>{ const d=parseDate(r[4]); return !d || d>=today; });
-  document.getElementById("body").innerHTML = visible.map(r=>
-    `<tr><td>${esc(r[0])}</td><td>${esc((r[1]||"").replace(/\s*\/\s*/g,"\n"))}</td>`+
-    `<td class="kl">${esc(r[2])}</td><td>${esc(r[3])}</td></tr>`).join("");
-  const first=rows[1]||[];
-  document.getElementById("legend").textContent = first[6]||"";
-  document.getElementById("note").textContent = first[7]||"";
+  if(!rows || rows.length<2) return;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var visible=[], i, r, d, html="";
+  for (i=1;i<rows.length;i++){
+    r=rows[i];
+    if(!(r[0]||"").replace(/\s/g,"")) continue;
+    d=parseDate(r[4]);
+    if(d && d<today) continue;
+    visible.push(r);
+  }
+  for (i=0;i<visible.length;i++){
+    r=visible[i];
+    html+='<tr class="'+(i%2?"even":"odd")+'"><td>'+esc(r[0])+'</td><td>'+esc((r[1]||"").replace(/\s*\/\s*/g,"\n"))+
+          '</td><td class="kl">'+esc(r[2])+'</td><td>'+esc(r[3])+'</td></tr>';
+  }
+  $("body").innerHTML = html;
+  $("legend").innerHTML = esc(rows[1][6]||"");
+  $("note").innerHTML = esc(rows[1][7]||"");
 }
 
-async function loadSchedule(){
+function loadSchedule(){
   if(!SCHEDULE_CSV_URL) return;
-  try{
-    const h={}; DAYS.forEach((_,i)=>h[i]=null);
-    (await getCSV(SCHEDULE_CSV_URL)).slice(1).forEach(r=>{
-      const i=DAYS.indexOf((r[0]||"").trim().toLowerCase());
-      if(i>=0&&toMin(r[1])!==null&&toMin(r[2])!==null) h[i]=[r[1],r[2]];
-    });
-    hours=h; localStorage.setItem("hours",JSON.stringify(h));
-  }catch(e){ try{ hours=JSON.parse(localStorage.getItem("hours"))||DEFAULT_HOURS; }catch(_){} }
+  getCSV(SCHEDULE_CSV_URL, function(r){
+    var h={}, i, k;
+    for(i=0;i<7;i++) h[i]=null;
+    for(i=1;i<r.length;i++){
+      k=DAYS.indexOf((r[i][0]||"").replace(/^\s+|\s+$/g,"").toLowerCase());
+      if(k>-1 && toMin(r[i][1])!==null && toMin(r[i][2])!==null) h[k]=[r[i][1],r[i][2]];
+    }
+    hours=h; store("hours",h);
+  }, function(){ hours = restore("hours") || DEFAULT_HOURS; });
 }
-async function loadData(){
-  try{ rows=await getCSV(DATA_CSV_URL); localStorage.setItem("rows",JSON.stringify(rows)); document.getElementById("status").textContent=""; }
-  catch(e){ if(!rows){ try{ rows=JSON.parse(localStorage.getItem("rows")); }catch(_){} } document.getElementById("status").textContent="offline"; }
-  render();
-}
-const tick=()=>{ document.body.classList.toggle("off",!isOn()); render(); };
 
-(async()=>{
-  await loadSchedule(); await loadData(); tick();
-  setInterval(tick,60000);
-  setInterval(async()=>{ await loadSchedule(); await loadData(); tick(); },REFRESH_SECONDS*1000);
-  setInterval(()=>{ const d=new Date(); if(d.getHours()===4&&d.getMinutes()===0) location.reload(); },60000);
-})();
+function loadData(){
+  getCSV(DATA_CSV_URL, function(r){
+    rows=r; store("rows",r); $("status").innerHTML=""; render();
+  }, function(err){
+    if(!rows) rows=restore("rows");
+    if(rows){ render(); $("status").innerHTML="Offline - viser seneste data ("+err+") "+VERSION; }
+    else { $("body").innerHTML='<tr class="odd"><td colspan="4">Kunne ikke hente data (fejl: '+esc(err)+')</td></tr>'; $("status").innerHTML=VERSION; }
+  });
+}
+
+function tick(){
+  if(isOn()) document.body.className=""; else document.body.className="off";
+}
+
+loadSchedule(); loadData(); tick();
+setInterval(tick, 60000);
+setInterval(function(){ loadSchedule(); loadData(); }, REFRESH_SECONDS*1000);
+setInterval(function(){ var d=new Date(); if(d.getHours()===4 && d.getMinutes()===0) location.reload(); }, 60000);
 </script>
 </body>
 </html>
